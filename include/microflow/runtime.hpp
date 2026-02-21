@@ -36,6 +36,7 @@ enum class LayerType : uint32_t {
     kReLU6 = 6,
     kLeakyReLU = 7,
     kELU = 8,
+    kGELU = 19,
     kMaxPool2D = 9,
     kAvgPool2D = 10,
     kGlobalAvgPool2D = 11,
@@ -630,6 +631,11 @@ public:
      * @brief 添加ReLU6激活
      */
     ModelBuilder& relu6();
+
+    /**
+     * @brief 添加GeLU激活
+     */
+    ModelBuilder& gelu();
 
     /**
      * @brief 添加LeakyReLU

@@ -252,16 +252,22 @@ def export_model(model, model_path, image_path, device='cpu'):
         f.write(struct.pack('IIIIII', 14, 0, 1, 1, 0, 0))  # kFlatten=14
 
         # Layer 8: FC1 (3136 -> 128)
+        # 优化：直接导出转置后的权重，避免C++运行时转置
+        # PyTorch格式: [out, in] = [128, 3136]
+        # 转置后: [in, out] = [3136, 128]
         f.write(struct.pack('IIIIII', 13, 0, 1, 1, 0, 0))  # kLinear=13
-        write_tensor(f, model.fc1.weight.detach().numpy())
+        write_tensor(f, model.fc1.weight.detach().numpy().T)  # 转置权重
         write_tensor(f, model.fc1.bias.detach().numpy())
 
         # Layer 9: ReLU
         f.write(struct.pack('IIIIII', 5, 0, 1, 1, 0, 0))  # kReLU=5
 
         # Layer 10: FC2 (128 -> 10) - 输出层
+        # 优化：同样导出转置后的权重
+        # PyTorch格式: [out, in] = [10, 128]
+        # 转置后: [in, out] = [128, 10]
         f.write(struct.pack('IIIIII', 13, 0, 1, 1, 0, 0))  # kLinear=13
-        write_tensor(f, model.fc2.weight.detach().numpy())
+        write_tensor(f, model.fc2.weight.detach().numpy().T)  # 转置权重
         write_tensor(f, model.fc2.bias.detach().numpy())
 
         # 注意: 不导出Softmax层，让C++推理引擎自动添加

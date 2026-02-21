@@ -529,90 +529,69 @@ void linear(const Tensor& input,
            Tensor& output)
 {
     // Y = X * W^T + bias
-    // 处理 1D 和 2D 输入的情况
-    // MNIST: input [784], weight [10, 784], output [10]
+    // 优化版本：权重已在导出时转置 [in_features, out_features]
+    // 向后兼容：自动检测并支持原始格式
 
-    // 验证输入张量
     if (!input.is_valid() || !weight.is_valid()) {
         std::cerr << "ERROR: Invalid input or weight tensor in linear!\n";
         return;
     }
 
-    // 对于 1D 输入，需要转换为 2D 进行 GEMM
+    // 对于 1D 输入
     if (input.ndim() == 1) {
-        // input: [in_features] -> [1, in_features]
-        // weight: [out_features, in_features] (需要转置为 [in_features, out_features])
-        // output: [out_features] -> [1, out_features]
-
         int in_features = input.shapes()[0];
-        int out_features = weight.shapes()[0];
+        int out_features;
 
-        // 验证权重形状
-        if (weight.shapes().size() < 2 || weight.shapes()[1] != static_cast<uint32_t>(in_features)) {
-            std::cerr << "ERROR: Weight shape mismatch in linear! Expected ["
-                      << out_features << ", " << in_features << "], got [";
-            for (size_t i = 0; i < weight.shapes().size(); ++i) {
-                std::cerr << weight.shapes()[i];
-                if (i < weight.shapes().size() - 1) std::cerr << ", ";
-            }
-            std::cerr << "]\n";
-            return;
+        // 检测权重格式：通过比较第一个维度和输入特征数
+        bool is_transposed = (weight.shapes()[0] == static_cast<uint32_t>(in_features));
+
+        const Tensor* weight_ptr;
+        Tensor weight_transposed;
+
+        if (is_transposed) {
+            // 优化格式: [in_features, out_features]
+            out_features = weight.shapes()[1];
+            weight_ptr = &weight;
+        } else {
+            // 原始格式: [out_features, in_features]
+            out_features = weight.shapes()[0];
+            weight_transposed = weight.transpose(0, 1);
+            weight_ptr = &weight_transposed;
         }
 
-        // 创建转置的权重张量 [in_features, out_features]
-        Tensor weight_T = weight.transpose(0, 1);
-
-        // 创建 2D 视图进行 GEMM
         Tensor input_2d = input.reshape({1, static_cast<uint32_t>(in_features)});
         Tensor output_2d = output.reshape({1, static_cast<uint32_t>(out_features)});
 
-        // 调用 GEMM: [1, in_features] * [in_features, out_features] = [1, out_features]
-        gemm(input_2d, weight_T, output_2d);
+        gemm(input_2d, *weight_ptr, output_2d);
 
-        // 添加偏置
         if (bias.size() > 0 && bias.is_valid()) {
             float* out_ptr = output_2d.raw_ptr();
             const float* bias_ptr = bias.raw_ptr();
-
             for (int n = 0; n < out_features; ++n) {
                 out_ptr[n] += bias_ptr[n];
             }
         }
     } else if (input.ndim() == 2) {
-        // 2D 输入情况: [batch, in_features]
-        // weight: [out_features, in_features]
-        // output: [batch, out_features]
-
         int batch = input.shapes()[0];
         int in_features = input.shapes()[1];
-        int out_features = weight.shapes()[0];
+        int out_features;
 
-        // 验证权重形状
-        if (weight.shapes().size() < 2 || weight.shapes()[1] != static_cast<uint32_t>(in_features)) {
-            std::cerr << "ERROR: Weight shape mismatch in linear!\n";
-            return;
+        bool is_transposed = (weight.shapes()[0] == static_cast<uint32_t>(in_features));
+
+        const Tensor* weight_ptr;
+        Tensor weight_transposed;
+
+        if (is_transposed) {
+            out_features = weight.shapes()[1];
+            weight_ptr = &weight;
+        } else {
+            out_features = weight.shapes()[0];
+            weight_transposed = weight.transpose(0, 1);
+            weight_ptr = &weight_transposed;
         }
 
-        // 创建转置的权重张量 [in_features, out_features]
-        Tensor weight_T = weight.transpose(0, 1);
+        gemm(input, *weight_ptr, output);
 
-        // 确保输出形状正确
-        std::vector<uint32_t> out_shape = {static_cast<uint32_t>(batch), static_cast<uint32_t>(out_features)};
-        if (output.shapes() != out_shape) {
-            std::cerr << "ERROR: Output shape mismatch in linear! Expected ["
-                      << batch << ", " << out_features << "], got [";
-            for (size_t i = 0; i < output.shapes().size(); ++i) {
-                std::cerr << output.shapes()[i];
-                if (i < output.shapes().size() - 1) std::cerr << ", ";
-            }
-            std::cerr << "]\n";
-            return;
-        }
-
-        // 调用 GEMM
-        gemm(input, weight_T, output);
-
-        // 添加偏置
         if (bias.size() > 0 && bias.is_valid()) {
             const auto& out_shapes = output.shapes();
             int M = out_shapes[0];

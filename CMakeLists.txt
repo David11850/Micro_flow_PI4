@@ -19,6 +19,7 @@ endif()
 add_library(microflow_core STATIC
     src/memory/allocator.cpp
     src/memory/tensor.cpp
+    src/memory/image.cpp
     src/gemm/gemm.cpp
     src/conv/conv.cpp
     src/layers/layers.cpp
@@ -80,6 +81,22 @@ target_link_libraries(benchmark microflow_core)
 # MNIST推理示例
 add_executable(mnist_demo examples/mnist_demo.cpp)
 target_link_libraries(mnist_demo microflow_core)
+
+# 图像推理示例
+add_executable(image_inference examples/image_inference.cpp)
+target_link_libraries(image_inference microflow_core)
+
+# 图像加载演示 (基于mnist_demo)
+add_executable(image_demo examples/image_demo.cpp)
+target_link_libraries(image_demo microflow_core)
+
+# 图像预处理工具
+add_executable(image_preprocess examples/image_preprocess.cpp)
+target_link_libraries(image_preprocess microflow_core)
+
+# 图像加载测试
+add_executable(test_image tests/test_image.cpp)
+target_link_libraries(test_image microflow_core)
 
 # 基础测试组件
 #add_executable(test_allocator tests/test_allocator.cpp)

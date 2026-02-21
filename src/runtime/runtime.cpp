@@ -51,6 +51,9 @@ void Conv2DLayer::forward(const std::vector<Tensor*>& inputs,
                          float* workspace)
 {
     if (inputs.empty() || outputs.empty()) return;
+    // 标准版本：Conv2D + Bias
+    // 注意：即使fuse_relu_=true，我们也在这里统一处理
+    // 真正的融合优化需要修改conv2d内部实现来在bias后立即应用ReLU
     conv2d(*inputs[0], kernel_, bias_, *outputs[0], params_, workspace);
 }
 
@@ -163,6 +166,9 @@ void ActivationLayer::forward(const std::vector<Tensor*>& inputs,
         case LayerType::kELU:
             elu(*outputs[0]);
             break;
+        case LayerType::kGELU:
+            gelu(*outputs[0]);
+            break;
         case LayerType::kSigmoid:
             sigmoid(*outputs[0]);
             break;
@@ -252,6 +258,18 @@ void LinearLayer::forward(const std::vector<Tensor*>& inputs,
 std::vector<uint32_t> LinearLayer::output_shape(
     const std::vector<std::vector<uint32_t>>& input_shapes
 ) const {
+    // 自动检测权重格式并返回正确的输出形状
+    if (weight_.ndim() == 2 && !input_shapes.empty()) {
+        uint32_t in_features = 1;
+        for (auto dim : input_shapes[0]) {
+            in_features *= dim;
+        }
+        // 如果权重第一个维度等于输入特征数，是优化格式 [in, out]
+        if (weight_.shapes()[0] == in_features) {
+            return { weight_.shapes()[1] };
+        }
+    }
+    // 原始格式 [out, in]
     return { weight_.shapes()[0] };
 }
 
@@ -402,6 +420,9 @@ bool Model::load(const std::string& path) {
         else if (lh.type == LayerType::kReLU) {
             add_layer(std::make_unique<ActivationLayer>("relu_" + std::to_string(i), LayerType::kReLU));
         }
+        else if (lh.type == LayerType::kGELU) {
+            add_layer(std::make_unique<ActivationLayer>("gelu_" + std::to_string(i), LayerType::kGELU));
+        }
         else if (lh.type == LayerType::kMaxPool2D) {
             add_layer(std::make_unique<PoolingLayer>("maxpool_" + std::to_string(i),
                                                      LayerType::kMaxPool2D, 2, 2, 0));
@@ -446,6 +467,10 @@ bool Model::load(const std::string& path) {
         add_layer(std::make_unique<SoftmaxLayer>("softmax_auto"));
         std::cout << "Auto-added Softmax layer for probability output\n";
     }
+
+    // 注意：层融合优化已禁用
+    // 真正的融合需要在conv2d/linear内核中实现，以避免额外的内存访问
+
     is_loaded_ = true;
 
     // 打印分配的张量信息
@@ -748,6 +773,11 @@ ModelBuilder& ModelBuilder::relu() {
 
 ModelBuilder& ModelBuilder::relu6() {
     layers_.push_back(std::make_unique<ActivationLayer>("relu6_" + std::to_string(layers_.size()), LayerType::kReLU6));
+    return *this;
+}
+
+ModelBuilder& ModelBuilder::gelu() {
+    layers_.push_back(std::make_unique<ActivationLayer>("gelu_" + std::to_string(layers_.size()), LayerType::kGELU));
     return *this;
 }
 

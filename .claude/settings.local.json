@@ -1,15 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(make:*)",
-      "Bash(git checkout:*)",
+      "Bash(echo:*)",
       "Bash(python3:*)",
-      "Bash(/home/michael/code/microflow/pi4_optimized/src/runtime/runtime.cpp:*)",
-      "Bash(./mnist_demo:*)",
-      "Bash(gdb -batch:*)",
+      "Bash(./image_demo:*)",
+      "Bash(ls:*)",
+      "Bash(build/image_demo:*)",
       "Bash(find:*)",
-      "Bash(xargs ls:*)",
-      "Bash(dd:*)"
+      "Bash(/home/michael/code/microflow/pi4_optimized/CHANGELOG_DEBUG.md:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(make:*)",
+      "Bash(for img in digit_4_1.bin digit_6_1.bin digit_7_1.bin digit_9_1.bin)",
+      "Bash(do echo \"=== Testing $img ===\" ./image_demo ../models/mnist_mixed.mflow ../image/$img)",
+      "Bash(git add:*)"
     ]
   }
 }
