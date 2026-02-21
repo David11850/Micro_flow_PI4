@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(git checkout:*)",
+      "Bash(python3:*)",
+      "Bash(/home/michael/code/microflow/pi4_optimized/src/runtime/runtime.cpp:*)",
+      "Bash(./mnist_demo:*)",
+      "Bash(gdb -batch:*)",
+      "Bash(find:*)",
+      "Bash(xargs ls:*)",
+      "Bash(dd:*)"
+    ]
+  }
+}
