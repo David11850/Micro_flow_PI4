@@ -131,6 +131,108 @@ void handle_predict(const httplib::Request& req, httplib::Response& res) {
 }
 
 /**
+ * @brief 处理可视化请求 - 返回中间层激活图
+ */
+void handle_visualize(const httplib::Request& req, httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set_header("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method == "OPTIONS") {
+        res.status = 200;
+        return;
+    }
+
+    try {
+        auto body = req.body;
+        size_t pixels_start = body.find("\"pixels\":");
+        if (pixels_start == std::string::npos) {
+            res.status = 400;
+            res.set_content("{\"error\":\"Invalid request format\"}", "application/json");
+            return;
+        }
+
+        pixels_start = body.find("[", pixels_start);
+        size_t pixels_end = body.find("]", pixels_start);
+
+        if (pixels_start == std::string::npos || pixels_end == std::string::npos) {
+            res.status = 400;
+            res.set_content("{\"error\":\"Invalid pixels format\"}", "application/json");
+            return;
+        }
+
+        std::string pixels_str = body.substr(pixels_start + 1, pixels_end - pixels_start - 1);
+        std::vector<float> pixels;
+        std::stringstream ss(pixels_str);
+        std::string token;
+
+        while (std::getline(ss, token, ',')) {
+            token.erase(0, token.find_first_not_of(" \t\n\r"));
+            token.erase(token.find_last_not_of(" \t\n\r") + 1);
+            if (!token.empty()) {
+                pixels.push_back(std::stof(token));
+            }
+        }
+
+        if (pixels.size() != 784) {
+            res.status = 400;
+            res.set_content("{\"error\":\"Expected 784 pixels, got " + std::to_string(pixels.size()) + "\"}", "application/json");
+            return;
+        }
+
+        // 创建输入张量
+        Tensor input({1, 28, 28});
+        std::memcpy(input.raw_ptr(), pixels.data(), 784 * sizeof(float));
+
+        // 执行推理
+        Tensor output = g_engine->infer(input);
+
+        // 获取中间层输出
+        std::vector<Tensor> intermediates = g_engine->get_intermediate_outputs();
+
+        // 构建JSON响应
+        std::ostringstream json;
+        json << "{";
+        json << "\"digit\":" << output.raw_ptr()[0] << ",";  // 简化：取最大值
+        json << "\"layers\":[";
+
+        for (size_t i = 0; i < intermediates.size(); ++i) {
+            const Tensor& layer = intermediates[i];
+            const auto& shapes = layer.shapes();
+
+            json << "{";
+            json << "\"index\":" << i << ",";
+            json << "\"shape\":[";
+            for (size_t j = 0; j < shapes.size(); ++j) {
+                json << shapes[j];
+                if (j < shapes.size() - 1) json << ",";
+            }
+            json << "],";
+
+            // 只返回前64个像素作为预览（避免数据太大）
+            json << "\"preview\":[";
+            uint32_t preview_size = std::min(static_cast<uint32_t>(64), layer.size());
+            const float* ptr = layer.raw_ptr();
+            for (uint32_t j = 0; j < preview_size; ++j) {
+                json << std::fixed << std::setprecision(4) << ptr[j];
+                if (j < preview_size - 1) json << ",";
+            }
+            json << "]";
+
+            json << "}";
+            if (i < intermediates.size() - 1) json << ",";
+        }
+
+        json << "]}";
+        res.set_content(json.str(), "application/json");
+
+    } catch (const std::exception& e) {
+        res.status = 500;
+        res.set_content("{\"error\":\"" + std::string(e.what()) + "\"}", "application/json");
+    }
+}
+
+/**
  * @brief 主页面
  */
 void handle_index(const httplib::Request& req, httplib::Response& res) {
@@ -262,10 +364,17 @@ void handle_index(const httplib::Request& req, httplib::Response& res) {
 
         <div class="buttons">
             <button id="recognize">识别</button>
+            <button id="visualize">可视化</button>
             <button id="clear">清空</button>
         </div>
 
         <p class="info">请在上方区域手写 0-9 的数字</p>
+
+        <!-- 可视化结果 -->
+        <div id="visualization" style="display: none; text-align: center; margin-top: 20px;">
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">AI 看到的中间层激活图：</p>
+            <div id="layers" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;"></div>
+        </div>
 
         <!-- 调试预览 -->
         <div style="text-align: center; margin-top: 20px;">
@@ -356,6 +465,78 @@ void handle_index(const httplib::Request& req, httplib::Response& res) {
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, 280, 280);
             document.getElementById('result').style.display = 'none';
+            document.getElementById('visualization').style.display = 'none';
+        });
+
+        // 可视化中间层
+        document.getElementById('visualize').addEventListener('click', async function() {
+            const loading = document.getElementById('loading');
+            const visDiv = document.getElementById('visualization');
+            const layersDiv = document.getElementById('layers');
+
+            loading.classList.add('show');
+            visDiv.style.display = 'none';
+
+            try {
+                const imageData = ctx.getImageData(0, 0, 280, 280);
+                const pixels = compressTo28x28(imageData);
+
+                const response = await fetch('/visualize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pixels: pixels })
+                });
+
+                const data = await response.json();
+
+                // 显示每一层
+                layersDiv.innerHTML = '';
+                for (let i = 0; i < data.layers.length; i++) {
+                    const layer = data.layers[i];
+                    const layerDiv = document.createElement('div');
+                    layerDiv.style.textAlign = 'center';
+
+                    const label = document.createElement('p');
+                    label.textContent = 'Layer ' + i;
+                    label.style.fontSize = '12px';
+                    label.style.margin = '5px 0';
+
+                    const canvas = document.createElement('canvas');
+                    const shape = layer.shape;
+
+                    // 根据层形状确定画布大小
+                    if (shape.length === 3) {
+                        const h = shape[1];
+                        const w = shape[2];
+                        const scale = Math.min(100 / h, 100 / w);
+                        canvas.width = w * scale;
+                        canvas.height = h * scale;
+
+                        const ctx2 = canvas.getContext('2d');
+                        const imgData = ctx2.createImageData(w, h);
+
+                        // 填充预览数据
+                        for (let j = 0; j < Math.min(layer.preview.length, w * h); j++) {
+                            const val = Math.floor(layer.preview[j] * 255);
+                            imgData.data[j * 4] = val;
+                            imgData.data[j * 4 + 1] = val;
+                            imgData.data[j * 4 + 2] = val;
+                            imgData.data[j * 4 + 3] = 255;
+                        }
+                        ctx2.putImageData(imgData, 0, 0);
+                    }
+
+                    layerDiv.appendChild(label);
+                    layerDiv.appendChild(canvas);
+                    layersDiv.appendChild(layerDiv);
+                }
+
+                visDiv.style.display = 'block';
+            } catch (error) {
+                alert('可视化失败: ' + error.message);
+            } finally {
+                loading.classList.remove('show');
+            }
         });
 
         // 识别
@@ -505,6 +686,7 @@ int main(int argc, char** argv) {
     // 注册路由
     svr.Get("/", handle_index);
     svr.Post("/predict", handle_predict);
+    svr.Post("/visualize", handle_visualize);
 
     // 启动服务器
     std::cout << "╔════════════════════════════════════════════╗\n";

@@ -908,6 +908,10 @@ void InferenceEngine::reset_stats() {
     inference_times_.clear();
 }
 
+std::vector<Tensor> InferenceEngine::get_intermediate_outputs() const {
+    return model_.intermediate_tensors_;
+}
+
 //==========================================================================
 // 辅助函数
 //==========================================================================

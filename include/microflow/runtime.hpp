@@ -750,6 +750,13 @@ public:
      */
     void reset_stats();
 
+    /**
+     * @brief 获取中间层输出（用于可视化）
+     *
+     * @return 中间层张量列表，每个元素是一层的输出
+     */
+    std::vector<Tensor> get_intermediate_outputs() const;
+
 public:
     Model model_;
     Config config_;
