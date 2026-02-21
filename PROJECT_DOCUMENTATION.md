@@ -2,7 +2,7 @@
 
 ## 文档信息
 - **项目名称**: MicroFlow
-- **版本**: 2.0
+- **版本**: 3.3
 - **平台**: 树莓派4 (Cortex-A72 ARM64)
 - **最后更新**: 2025-02-21
 
@@ -112,6 +112,7 @@ MicroFlow支持以下19种层类型，覆盖了大多数常见的神经网络层
 | Concat | 16 | 拼接层 | 多分支融合 |
 | Softmax | 17 | Softmax激活 | 概率输出 |
 | Sigmoid | 18 | Sigmoid激活 | 二分类输出 |
+| GeLU | 19 | GeLU激活函数 | Transformer模型 |
 
 ---
 
@@ -1847,6 +1848,29 @@ Model loaded successfully!
 
 ```bash
 ./benchmark
+```
+
+#### 7.2.3 Web手写识别
+
+```bash
+# 启动Web服务
+./web_demo ../models/mnist_mixed.mflow 8080
+```
+
+然后在浏览器中访问 `http://localhost:8080` 或 `http://<树莓派IP>:8080`
+
+**功能特性**:
+- 🖱️ 鼠标/触摸屏手写输入
+- 👁️ 实时预览压缩后的28×28图像
+- 🔄 自动颜色反转（白底黑字 → 黑底白字）
+- 📱 移动端友好
+
+**API接口**:
+```bash
+# 直接调用API
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"pixels": [0.1, 0.2, ..., 784 values]}'
 ```
 
 ### 7.3 训练自定义模型

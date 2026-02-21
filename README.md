@@ -1,4 +1,4 @@
-# MicroFlow v2.0
+# MicroFlow v3.3
 
 ## 轻量级神经网络推理引擎 - 树莓派4极致优化版
 
@@ -24,6 +24,8 @@ MicroFlow是一个专门针对树莓派4（Cortex-A72 ARM64架构）深度优化
 - 🎯 **简单API**: 类似PyTorch的直观接口
 - 📊 **模型格式**: 自定义.mflow格式，支持从PyTorch导出
 - 🔧 **完整工具链**: 模型转换、性能分析、调试工具
+- 🌐 **Web界面**: 浏览器实时手写识别
+- 🖼️ **图像支持**: PNG/JPEG/BMP等格式直接推理
 
 ---
 
@@ -65,8 +67,15 @@ make -j4
 ### 运行示例
 
 ```bash
-# 运行MNIST手写数字识别
+# MNIST手写数字识别（命令行）
 ./mnist_demo ../models/mnist.mflow ../models/sample3.bin
+
+# 图像文件识别（支持PNG/JPEG等）
+./image_demo ../models/mnist_mixed.mflow /path/to/image.png
+
+# Web手写识别服务（浏览器界面）
+./web_demo ../models/mnist_mixed.mflow 8080
+# 浏览器访问: http://localhost:8080
 
 # 运行性能基准测试
 ./benchmark
@@ -202,7 +211,10 @@ pi4_optimized/
 │   ├── gemm.hpp           # 矩阵乘法
 │   ├── conv.hpp           # 卷积
 │   ├── layers.hpp         # 层操作
-│   └── runtime.hpp        # 运行时系统
+│   ├── runtime.hpp        # 运行时系统
+│   ├── image.hpp          # 图像处理
+│   ├── stb_image.h        # 图像加载库
+│   └── httplib.h          # HTTP库
 ├── src/                   # 源文件
 │   ├── memory/            # 内存管理
 │   ├── gemm/              # GEMM实现
@@ -211,6 +223,12 @@ pi4_optimized/
 │   └── runtime/           # 运行时实现
 ├── tests/                 # 测试程序
 ├── examples/              # 示例程序
+│   ├── mnist_demo.cpp      # MNIST命令行识别
+│   ├── image_demo.cpp      # 图像文件识别
+│   └── web_demo.cpp        # Web手写识别服务
+├── tools/                 # 训练工具
+│   ├── train_mixed.py      # 混合训练脚本
+│   └── csv_to_bin.py       # CSV转BIN工具
 ├── docs/                  # 详细文档
 │   ├── memory.md          # 内存管理说明
 │   ├── gemm.md            # GEMM优化说明
@@ -268,6 +286,7 @@ make
 | DepthwiseConv2D | ✅ | NEON优化 |
 | BatchNorm | ✅ | 支持融合 |
 | ReLU/ReLU6 | ✅ | NEON优化 |
+| GeLU | ✅ | Transformer支持 |
 | MaxPool2D | ✅ | OpenMP并行 |
 | AvgPool2D | ✅ | OpenMP并行 |
 | GlobalAvgPool2D | ✅ | 优化 |
@@ -319,10 +338,9 @@ make
 
 ## 联系方式
 
-- 项目主页: https://github.com/your-repo/MicroFlow
-- 问题反馈: https://github.com/your-repo/MicroFlow/issues
-- 邮箱: your-email@example.com
+- 项目主页: https://github.com/David11850/Micro_flow_PI4
+- 问题反馈: https://github.com/David11850/Micro_flow_PI4/issues
 
 ---
 
-**MicroFlow v2.0** - 让边缘AI推理更高效！
+**MicroFlow v3.3** - 让边缘AI推理更高效！
