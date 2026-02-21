@@ -98,6 +98,10 @@ target_link_libraries(image_preprocess microflow_core)
 add_executable(test_image tests/test_image.cpp)
 target_link_libraries(test_image microflow_core)
 
+# Web手写识别服务
+add_executable(web_demo examples/web_demo.cpp)
+target_link_libraries(web_demo microflow_core pthread)
+
 # 基础测试组件
 #add_executable(test_allocator tests/test_allocator.cpp)
 #target_link_libraries(test_allocator microflow_core)

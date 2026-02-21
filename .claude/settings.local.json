@@ -13,7 +13,16 @@
       "Bash(make:*)",
       "Bash(for img in digit_4_1.bin digit_6_1.bin digit_7_1.bin digit_9_1.bin)",
       "Bash(do echo \"=== Testing $img ===\" ./image_demo ../models/mnist_mixed.mflow ../image/$img)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(pkill -9 web_demo sleep 1 ps aux)",
+      "Bash(pkill:*)",
+      "Bash(./web_demo:*)",
+      "Bash(sudo ufw status)",
+      "Bash(ss:*)",
+      "Bash(cat:*)"
     ]
   }
 }
