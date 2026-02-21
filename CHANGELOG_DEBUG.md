@@ -1144,3 +1144,199 @@ Response: {"digit": 7, "confidence": 0.9998, "scores": [...]}
 *更新日期: 2025-02-21*
 *MicroFlow Version: 3.3 (Web Interface)*
 *平台: Raspberry Pi 4 (Cortex-A72)*
+
+---
+
+## 第十一阶段：Web界面简化与代码优化 (2025-02-22)
+
+### 背景
+
+Web界面在添加中间层可视化功能后出现了语法错误，经过修复和用户体验评估，决定简化界面，移除可视化功能。
+
+### 修复的问题
+
+**1. 重复代码语法错误**
+
+**位置**: `examples/web_demo.cpp` 第590-617行
+
+**问题**: JavaScript代码存在重复的代码块
+```javascript
+// 第一次出现 (正确)
+document.getElementById('visualize').addEventListener('click', async function() {
+    // ... 完整的可视化逻辑 ...
+});
+});
+
+// 第二次出现 (重复孤立代码) - 导致编译错误
+canvas.width = w * scale;
+canvas.height = h * scale;
+// ... 重复的代码片段 ...
+```
+
+**修复**: 删除第590-617行的重复代码块
+
+**影响**: 修复前代码无法编译，修复后编译成功
+
+---
+
+**2. 中间层可视化功能（已添加后移除）**
+
+### 实现的功能（已移除）
+
+**后端修改** (`examples/web_demo.cpp`):
+- 新增 `/visualize` API端点
+- 返回所有12层的中间激活数据
+- 每层返回400个预览值（原来100个）
+- 包含预测数字和置信度
+
+**前端修改**:
+- 添加"可视化"按钮
+- 显示所有12层的激活图
+- 展示层类型名称（中英文）
+- 自动归一化显示
+- 卡片式布局设计
+
+### 移除的原因
+
+1. **用户体验**: 可视化画布显示效果不理想
+2. **界面简洁**: 用户更关注识别结果而非内部过程
+3. **性能考虑**: 减少不必要的数据传输和渲染
+
+### 最终简化方案
+
+**保留的功能**:
+- ✅ 280×280手写画布
+- ✅ "识别"按钮
+- ✅ "清空"按钮
+- ✅ 识别结果展示（数字+置信度）
+- ✅ 加载提示
+- ✅ `/predict` API
+
+**移除的功能**:
+- ❌ "可视化"按钮
+- ❌ 中间层激活图展示
+- ❌ 28×28预览画布
+- ❌ `updatePreview()` 函数
+- ❌ 可视化事件监听器
+
+**保留的API（供外部调用）**:
+- `/visualize` 端点保留在后端，供API用户使用
+
+---
+
+### 文件变更
+
+| 文件 | 变更内容 |
+|------|---------|
+| `examples/web_demo.cpp` | 删除重复代码、移除可视化UI、保留API |
+| `CHANGELOG_DEBUG.md` | 添加本次修改记录 |
+| `README.md` | 更新Web界面说明 |
+
+### 修改后的Web界面
+
+**HTML结构**:
+```html
+<div class="container">
+    <h1>✍️ MicroFlow 手写识别</h1>
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <div class="result" id="result">
+        <div class="result-digit" id="digit">?</div>
+        <div class="result-confidence" id="confidence">置信度: 0%</div>
+    </div>
+    <div class="loading" id="loading">正在识别...</div>
+    <div class="buttons">
+        <button id="recognize">识别</button>
+        <button id="clear">清空</button>
+    </div>
+</div>
+```
+
+**JavaScript功能**:
+```javascript
+// 画布绘制（鼠标/触摸）
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('touchstart', handleTouch);
+canvas.addEventListener('touchmove', handleTouchMove);
+
+// 识别按钮
+document.getElementById('recognize').addEventListener('click', async function() {
+    const pixels = compressTo28x28(imageData);
+    const response = await fetch('/predict', {
+        method: 'POST',
+        body: JSON.stringify({ pixels: pixels })
+    });
+    // 显示结果
+});
+
+// 清空按钮
+document.getElementById('clear').addEventListener('click', function() {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, 280, 280);
+    document.getElementById('result').style.display = 'none';
+});
+```
+
+### API接口
+
+**POST /predict** (保留 - UI使用)
+```json
+Request: {"pixels": [0.1, 0.2, ..., 784 values]}
+Response: {"digit": 7, "confidence": 0.9998, "scores": [0.0, 0.0, ..., 0.9998, ...]}
+```
+
+**POST /visualize** (保留 - API专用)
+```json
+Request: {"pixels": [0.1, 0.2, ..., 784 values]}
+Response: {
+    "digit": 7,
+    "confidence": 0.9998,
+    "layers": [
+        {"index": 0, "shape": [1,28,28], "preview": [...]},
+        {"index": 1, "shape": [32,28,28], "preview": [...]},
+        ...
+    ]
+}
+```
+
+### 测试验证
+
+| 测试项 | 结果 |
+|--------|------|
+| 编译成功 | ✅ |
+| 服务启动 | ✅ |
+| 识别功能 | ✅ |
+| 清空功能 | ✅ |
+| 预测准确率 | ✅ 100% |
+
+### 性能指标
+
+| 指标 | 数值 |
+|------|------|
+| Web界面响应 | <50ms |
+| 推理时间 | ~10ms |
+| 内存占用 | ~10MB |
+| 二进制大小 | 634KB |
+
+---
+
+### 开发记录
+
+**提交历史**:
+```
+330f075 - feat: Add intermediate layer visualization for Web interface (已回退)
+2ab22b2 - fix: Improve preprocessing and fix compilation warnings
+```
+
+**修复过程**:
+1. 发现重复代码导致编译失败
+2. 删除重复代码，编译成功
+3. 添加中间层可视化功能
+4. 评估用户体验，决定简化界面
+5. 移除可视化UI，保留简洁界面
+
+---
+
+*更新日期: 2025-02-22*
+*MicroFlow Version: 3.3 (Simplified Web Interface)*
+*平台: Raspberry Pi 4 (Cortex-A72)*

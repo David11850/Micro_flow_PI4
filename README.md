@@ -24,7 +24,7 @@ MicroFlow是一个专门针对树莓派4（Cortex-A72 ARM64架构）深度优化
 - 🎯 **简单API**: 类似PyTorch的直观接口
 - 📊 **模型格式**: 自定义.mflow格式，支持从PyTorch导出
 - 🔧 **完整工具链**: 模型转换、性能分析、调试工具
-- 🌐 **Web界面**: 浏览器实时手写识别
+- 🌐 **Web界面**: 简洁的浏览器手写识别界面
 - 🖼️ **图像支持**: PNG/JPEG/BMP等格式直接推理
 
 ---
@@ -76,6 +76,7 @@ make -j4
 # Web手写识别服务（浏览器界面）
 ./web_demo ../models/mnist_mixed.mflow 8080
 # 浏览器访问: http://localhost:8080
+# 或使用树莓派IP: http://192.168.1.9:8080
 
 # 运行性能基准测试
 ./benchmark
@@ -225,7 +226,7 @@ pi4_optimized/
 ├── examples/              # 示例程序
 │   ├── mnist_demo.cpp      # MNIST命令行识别
 │   ├── image_demo.cpp      # 图像文件识别
-│   └── web_demo.cpp        # Web手写识别服务
+│   └── web_demo.cpp        # Web手写识别服务（简洁界面）
 ├── tools/                 # 训练工具
 │   ├── train_mixed.py      # 混合训练脚本
 │   └── csv_to_bin.py       # CSV转BIN工具

@@ -1859,16 +1859,22 @@ Model loaded successfully!
 
 然后在浏览器中访问 `http://localhost:8080` 或 `http://<树莓派IP>:8080`
 
-**功能特性**:
-- 🖱️ 鼠标/触摸屏手写输入
-- 👁️ 实时预览压缩后的28×28图像
-- 🔄 自动颜色反转（白底黑字 → 黑底白字）
-- 📱 移动端友好
+**界面功能**:
+- 🖱️ 280×280 手写画布（支持鼠标和触摸）
+- 🔘 "识别"按钮 - 执行数字识别
+- 🔘 "清空"按钮 - 清除画布和结果
+- 📊 结果显示 - 预测数字和置信度
+- 📱 响应式设计 - 移动端友好
 
 **API接口**:
 ```bash
-# 直接调用API
+# 预测接口 (UI使用)
 curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"pixels": [0.1, 0.2, ..., 784 values]}'
+
+# 可视化接口 (API专用，返回中间层)
+curl -X POST http://localhost:8080/visualize \
   -H "Content-Type: application/json" \
   -d '{"pixels": [0.1, 0.2, ..., 784 values]}'
 ```
