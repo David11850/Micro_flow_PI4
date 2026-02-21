@@ -131,7 +131,7 @@ void benchmark_memory_allocation() {
 void benchmark_gemm() {
     print_separator("GEMM Benchmark");
 
-    std::vector<std::tuple<int, int, int>> test_sizes = {
+    std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> test_sizes = {
         {128, 128, 128},
         {256, 256, 256},
         {512, 512, 512},
@@ -215,10 +215,10 @@ void benchmark_conv() {
     print_separator("Convolution Benchmark");
 
     struct ConvTest {
-        int C_in, H, W;
-        int C_out;
-        int K;
-        int stride, pad;
+        uint32_t C_in, H, W;
+        uint32_t C_out;
+        uint32_t K;
+        uint32_t stride, pad;
     };
 
     std::vector<ConvTest> tests = {
@@ -246,8 +246,8 @@ void benchmark_conv() {
         Conv2DParams params(test.K, test.stride, test.pad);
 
         // 计算输出尺寸
-        int H_out = (test.H + 2 * test.pad - test.K) / test.stride + 1;
-        int W_out = (test.W + 2 * test.pad - test.K) / test.stride + 1;
+        uint32_t H_out = (test.H + 2 * test.pad - test.K) / test.stride + 1;
+        uint32_t W_out = (test.W + 2 * test.pad - test.K) / test.stride + 1;
         output = Tensor({test.C_out, H_out, W_out});
 
         // 计算FLOPs

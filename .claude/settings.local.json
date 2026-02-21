@@ -22,7 +22,10 @@
       "Bash(./web_demo:*)",
       "Bash(sudo ufw status)",
       "Bash(ss:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(git branch:*)"
     ]
   }
 }

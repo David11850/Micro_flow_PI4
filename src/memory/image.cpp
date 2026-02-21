@@ -429,42 +429,59 @@ void Image::preprocess_mnist(const Tensor& input, Tensor& output)
     const auto& shapes = current.shapes();
     uint32_t height = shapes[shapes.size() - 2];
     uint32_t width = shapes[shapes.size() - 1];
+    uint32_t size = current.size();
     const float* ptr = current.raw_ptr();
 
-    // 检查中心9x9区域的平均值，判断是否需要反色
-    float center_sum = 0;
-    uint32_t start_h = height / 2 - 4;
-    uint32_t start_w = width / 2 - 4;
-    for (uint32_t h = 0; h < 9 && (start_h + h) < height; ++h) {
-        for (uint32_t w = 0; w < 9 && (start_w + w) < width; ++w) {
-            center_sum += ptr[(start_h + h) * width + (start_w + w)];
-        }
-    }
-    float center_avg = center_sum / 81.0f;
+    // 使用图像整体统计来判断颜色格式
+    // MNIST格式: 黑底(0)白字(1)，背景占大多数
+    // 拍照格式: 白底(1)黑字(0)，背景占大多数
 
+    float sum = 0;
+    int dark_count = 0;  // <0.5的像素数
+    int bright_count = 0; // >=0.5的像素数
+
+    for (uint32_t i = 0; i < size; ++i) {
+        sum += ptr[i];
+        if (ptr[i] < 0.5f) dark_count++;
+        else bright_count++;
+    }
+
+    float avg = sum / size;
+
+    // 如果图像平均亮度 > 0.6，说明是白底黑字，需要反色
+    // 如果图像平均亮度 < 0.4，说明是黑底白字，不需要反色
     Tensor processed;
-    if (center_avg < 0.3f) {
-        // 中心区域偏暗，说明是白底黑字，需要反色
+    if (avg > 0.6f) {
+        // 白底黑字，需要反色
         processed = Tensor(current.shapes());
         std::memcpy(processed.raw_ptr(), current.raw_ptr(), current.size() * sizeof(float));
         invert(processed);
     } else {
-        // 已经是黑底白字，直接使用
+        // 黑底白字，直接使用
         processed = current;
     }
 
-    // 自动裁剪边框（在灰度图上裁剪，保留更多信息）
+    // 自动裁剪边框
+    // 使用更低的阈值来检测内容，确保能找到笔画
     Tensor cropped;
-    auto_crop(processed, cropped, 4, 0.05f);
+    auto_crop(processed, cropped, 8, 0.01f);  // 降低阈值到0.01，增加padding
 
-    // 如果裁剪后的图像太小，直接缩放原图
+    // 检查裁剪结果
     const auto& crop_shapes = cropped.shapes();
-    if (crop_shapes[crop_shapes.size() - 2] < 10 || crop_shapes[crop_shapes.size() - 1] < 10) {
-        // 裁剪失败或图像太小，使用原图
-        resize(current, output, 28, 28);
-    } else {
-        // 缩放到28x28
+    const auto& orig_shapes = processed.shapes();
+
+    uint32_t crop_h = crop_shapes[crop_shapes.size() - 2];
+    uint32_t crop_w = crop_shapes[crop_shapes.size() - 1];
+    uint32_t orig_h = orig_shapes[orig_shapes.size() - 2];
+    uint32_t orig_w = orig_shapes[orig_shapes.size() - 1];
+
+    // 如果裁剪后图像明显比原图小（至少在一个方向上小于80%），说明成功裁剪
+    if (crop_h < orig_h * 0.8f || crop_w < orig_w * 0.8f) {
+        // 使用裁剪后的图像
         resize(cropped, output, 28, 28);
+    } else {
+        // 裁剪没有效果，使用原图
+        resize(processed, output, 28, 28);
     }
 }
 
