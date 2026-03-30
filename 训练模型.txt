@@ -1,0 +1,105 @@
+# MicroFlow 模型训练指南
+
+## 目的
+在树莓派4上实现 MNIST 手写数字识别推理引擎。
+
+---
+
+## 数据来源
+
+### 标准 MNIST 数据集
+- 来源：MNIST 官方数据集 (http://yann.lecun.com/exdb/mnist/)
+- 内容：60,000 训练样本 + 10,000 测试样本
+- 格式：28×28 灰度图像
+
+### 自定义手写数据（可选）
+- 来源：Neural Network Digits (http://www.ccom.ucsd.edu/~cdeotte/programs/MNIST.html)
+- 说明：该网站支持手绘数字并导出 CSV 格式
+- 格式：784 像素值 (0-255)，第一列为标签
+- 使用方法：
+  1. 在网页上手绘数字 0-9
+  2. 点击 'Download' 导出 CSV
+  3. 将 CSV 文件放入 `tools/` 目录
+  4. 使用 `train_mixed.py` 混合标准 MNIST 训练
+
+---
+
+## 快速开始
+
+### 1. 安装 PyTorch（CPU 版本）
+
+```bash
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+### 2. 训练并导出模型
+
+```bash
+cd /home/michael/workspace/microflow/tools
+python3 train_and_export.py
+```
+
+训练 25 轮后自动生成：
+- `mnist_improved.mflow` - 模型文件
+- `../image/test_input.bin` - 测试图片
+
+### 3. 运行推理
+
+```bash
+cd /home/michael/workspace/microflow/build
+./mnist_demo ../models/mnist_improved.mflow ../image/test_input.bin
+```
+
+---
+
+## 模型架构
+
+采用改进版 LeNet-5 架构：
+
+| 层 | 类型 | 输入 → 输出 |
+|----|------|-------------|
+| 1 | Conv2D | 1×28×28 → 32×28×28 |
+| 2 | ReLU | 激活 |
+| 3 | MaxPool | 32×28×28 → 32×14×14 |
+| 4 | Conv2D | 32×14×14 → 64×14×14 |
+| 5 | ReLU | 激活 |
+| 6 | MaxPool | 64×14×14 → 64×7×7 |
+| 7 | Flatten | 64×7×7 → 3136 |
+| 8 | Linear | 3136 → 128 |
+| 9 | ReLU | 激活 |
+| 10 | Linear | 128 → 10 |
+
+**参数量**: ~421,642
+
+---
+
+## .mflow 模型格式
+
+模型文件是自定义二进制格式，结构如下：
+
+```
++------------------+
+|  ModelHeader     |  88 字节 - 魔数、版本、层数
++------------------+
+|  LayerHeaders    |  24 字节/层 × 11层
++------------------+
+|  TensorDescs     |  32 字节/张量 × 8张量
++------------------+
+|  Weight Data     |  实际权重（float32）
++------------------+
+```
+
+详细格式说明见 `docs/runtime.md`。
+
+---
+
+## 相关文件
+
+| 文件 | 说明 |
+|------|------|
+| `tools/train_and_export.py` | 训练+导出脚本 |
+| `tools/train_mixed.py` | 混合训练脚本（标准MNIST + 自定义数据）|
+| `tools/csv_to_bin.py` | CSV 转 BIN 工具 |
+| `tools/trainData.csv` | 自定义手写数据示例 |
+| `examples/mnist_demo.cpp` | MNIST 推理示例 |
+| `examples/web_demo.cpp` | Web 界面示例 |
